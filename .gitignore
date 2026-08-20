@@ -1,0 +1,22 @@
+# Personal Reference Files
+INTERVIEW_TALKING_POINTS.md
+
+# Maven build artifacts
+target/
+*.class
+
+# IDE and Editor files
+.idea/
+*.iml
+.vscode/
+*.ipr
+*.iws
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Automation & scratch logs
+.github/modernize/
+*.log
