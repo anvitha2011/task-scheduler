@@ -2,12 +2,40 @@
 let currentFilter = 'ALL';
 let allLogs = [];
 let eventSource = null;
+let isSimMode = false;
+let simSeq = 1;
+
+let simState = {
+  metrics: {
+    tasksSubmitted: 0,
+    tasksCompleted: 0,
+    tasksFailed: 0,
+    tasksRetried: 0,
+    activeWorkers: 0,
+    totalWorkers: 4,
+    queueSize: 0,
+    dlqSize: 0,
+    avgExecTimeMs: '0.0',
+    successRate: '100.0'
+  },
+  workers: [
+    { name: 'worker-thread-1', state: 'IDLE', active: false, currentTask: null, task: null },
+    { name: 'worker-thread-2', state: 'IDLE', active: false, currentTask: null, task: null },
+    { name: 'worker-thread-3', state: 'IDLE', active: false, currentTask: null, task: null },
+    { name: 'worker-thread-4', state: 'IDLE', active: false, currentTask: null, task: null }
+  ],
+  queue: [],
+  dlq: [],
+  logs: []
+};
 
 document.addEventListener('DOMContentLoaded', () => {
   setupEventListeners();
+  addSimLog('SUCCESS', 'System', 'init-001', 'TaskSchedulerEngine', 'CRITICAL', 'Task Scheduler engine active. Click any scenario or Dispatch Task to begin.', 0, 0);
+  updateUI(simState);
   initSSE();
   fetchStatus();
-  setInterval(fetchStatus, 1500); // Heartbeat sync
+  setInterval(fetchStatus, 1500); // Periodic heartbeat sync
 });
 
 function setupEventListeners() {
@@ -27,12 +55,30 @@ function setupEventListeners() {
   document.getElementById('btnResetScheduler').addEventListener('click', async () => {
     if (confirm('Reset task scheduler, pool, and metrics to fresh state?')) {
       if (isSimMode) {
-        simState.metrics = { tasksSubmitted: 0, tasksCompleted: 0, tasksFailed: 0, tasksRetried: 0, activeWorkers: 0, totalWorkers: 4, queueSize: 0, dlqSize: 0, avgExecTimeMs: '0.0', successRate: '100.0' };
+        simState.metrics = {
+          tasksSubmitted: 0,
+          tasksCompleted: 0,
+          tasksFailed: 0,
+          tasksRetried: 0,
+          activeWorkers: 0,
+          totalWorkers: 4,
+          queueSize: 0,
+          dlqSize: 0,
+          avgExecTimeMs: '0.0',
+          successRate: '100.0'
+        };
         simState.queue = [];
         simState.dlq = [];
         simState.logs = [];
         allLogs = [];
+        simState.workers.forEach(w => {
+          w.state = 'IDLE';
+          w.active = false;
+          w.currentTask = null;
+          w.task = null;
+        });
         showToast('Task Scheduler reset successfully');
+        addSimLog('SUCCESS', 'System', 'reset', 'TaskSchedulerEngine', 'LOW', 'Task Scheduler state and metrics reset.', 0, 0);
         updateUI(simState);
         return;
       }
@@ -45,14 +91,30 @@ function setupEventListeners() {
   document.getElementById('btnReplayDlq').addEventListener('click', async () => {
     if (isSimMode) {
       const count = simState.dlq.length;
+      if (count === 0) {
+        showToast('Dead Letter Queue is already empty');
+        return;
+      }
       simState.dlq.forEach(d => {
-        d.task.retryCount = 0;
-        d.task.status = 'QUEUED';
-        d.task.scheduledTime = Date.now();
-        simState.queue.push(d.task);
+        const t = d.task || {
+          id: d.taskId,
+          name: d.taskName,
+          priority: d.priority,
+          durationMs: 300,
+          failMode: 'none',
+          maxRetries: 0,
+          backoffMs: 200
+        };
+        t.retryCount = 0;
+        t.failMode = 'none'; // reset so replayed task executes cleanly
+        t.status = 'QUEUED';
+        t.scheduledTime = Date.now();
+        t.sequenceNumber = simSeq++;
+        simState.queue.push(t);
+        addSimLog('RETRY', 'Admin-DLQ', t.id, t.name, t.priority, `Replaying quarantined task from DLQ back to Priority Queue`, 0, 0);
       });
       simState.dlq = [];
-      showToast(`Replayed ${count} tasks from DLQ back to Queue`);
+      showToast(`Replayed ${count} tasks from DLQ back to Priority Queue`);
       updateUI(simState);
       return;
     }
@@ -76,6 +138,7 @@ function setupEventListeners() {
 
   document.getElementById('btnClearLogs').addEventListener('click', () => {
     allLogs = [];
+    if (isSimMode) simState.logs = [];
     renderLogs();
   });
 
@@ -89,47 +152,37 @@ function initSSE() {
   const connPill = document.getElementById('connPill');
 
   if (window.EventSource) {
-    eventSource = new EventSource('/api/stream');
+    try {
+      eventSource = new EventSource('/api/stream');
 
-    eventSource.onopen = () => {
-      connStatus.innerText = 'SSE STREAM LIVE';
-      connPill.style.borderColor = 'rgba(16, 185, 129, 0.4)';
-    };
+      eventSource.onopen = () => {
+        connStatus.innerText = 'SSE STREAM LIVE';
+        connPill.style.borderColor = 'rgba(16, 185, 129, 0.4)';
+      };
 
-    eventSource.addEventListener('CONNECTED', (e) => {
-      connStatus.innerText = 'ONLINE (SSE)';
-    });
+      eventSource.addEventListener('CONNECTED', () => {
+        connStatus.innerText = 'ONLINE (SSE)';
+      });
 
-    eventSource.addEventListener('STARTED', (e) => { fetchStatus(); });
-    eventSource.addEventListener('SUCCESS', (e) => { fetchStatus(); });
-    eventSource.addEventListener('FAILURE', (e) => { fetchStatus(); });
-    eventSource.addEventListener('RETRY', (e) => { fetchStatus(); });
-    eventSource.addEventListener('SUBMITTED', (e) => { fetchStatus(); });
+      eventSource.addEventListener('STARTED', () => { fetchStatus(); });
+      eventSource.addEventListener('SUCCESS', () => { fetchStatus(); });
+      eventSource.addEventListener('FAILURE', () => { fetchStatus(); });
+      eventSource.addEventListener('RETRY', () => { fetchStatus(); });
+      eventSource.addEventListener('SUBMITTED', () => { fetchStatus(); });
 
-    eventSource.onerror = () => {
-      connStatus.innerText = 'POLLING ACTIVE';
-      connPill.style.borderColor = 'rgba(245, 158, 11, 0.4)';
-    };
+      eventSource.onerror = () => {
+        initSimEngine();
+      };
+    } catch (e) {
+      initSimEngine();
+    }
   } else {
-    connStatus.innerText = 'POLLING ACTIVE';
+    initSimEngine();
   }
 }
 
-let isSimMode = false;
-let simState = {
-  metrics: { tasksSubmitted: 0, tasksCompleted: 0, tasksFailed: 0, tasksRetried: 0, activeWorkers: 0, totalWorkers: 4, queueSize: 0, dlqSize: 0, avgExecTimeMs: '0.0', successRate: '100.0' },
-  workers: [
-    { name: 'worker-thread-1', state: 'IDLE', active: false, task: null },
-    { name: 'worker-thread-2', state: 'IDLE', active: false, task: null },
-    { name: 'worker-thread-3', state: 'IDLE', active: false, task: null },
-    { name: 'worker-thread-4', state: 'IDLE', active: false, task: null }
-  ],
-  queue: [],
-  dlq: [],
-  logs: []
-};
-
 function initSimEngine() {
+  if (isSimMode) return;
   isSimMode = true;
   const connStatus = document.getElementById('connStatusText');
   const connPill = document.getElementById('connPill');
@@ -141,47 +194,55 @@ function initSimEngine() {
 function simWorkerTick() {
   if (!isSimMode) return;
   const now = Date.now();
-  // Check ready queue
+
   simState.workers.forEach(w => {
     if (!w.active && simState.queue.length > 0) {
-      // Find highest priority mature task
+      // Min-heap priority order (CRITICAL > HIGH > MEDIUM > LOW) + sequence tie-breaking
       simState.queue.sort((a, b) => {
         const pOrder = { CRITICAL: 4, HIGH: 3, MEDIUM: 2, LOW: 1 };
         const pd = (pOrder[b.priority] || 1) - (pOrder[a.priority] || 1);
         if (pd !== 0) return pd;
-        return (a.seq || 0) - (b.seq || 0);
+        return (a.sequenceNumber || 0) - (b.sequenceNumber || 0);
       });
+
       const readyIdx = simState.queue.findIndex(t => (t.scheduledTime || 0) <= now);
       if (readyIdx !== -1) {
         const task = simState.queue.splice(readyIdx, 1)[0];
         w.active = true;
         w.state = 'EXECUTING';
+        w.currentTask = task;
         w.task = task;
         task.status = 'RUNNING';
         simState.metrics.activeWorkers = simState.workers.filter(x => x.active).length;
         simState.metrics.queueSize = simState.queue.length;
 
-        addSimLog('STARTED', w.name, task.id, task.name, task.priority, 'Worker dequeued task', 0, task.retryCount);
-        
+        addSimLog('STARTED', w.name, task.id, task.name, task.priority, 'Worker dequeued task from priority queue', 0, task.retryCount);
+        updateUI(simState);
+
         setTimeout(() => {
           simFinishTask(w, task);
-        }, task.durationMs || 500);
+        }, task.durationMs || 400);
       }
     }
   });
+
   simState.metrics.queueSize = simState.queue.length;
   simState.metrics.dlqSize = simState.dlq.length;
   updateUI(simState);
 }
 
 function simFinishTask(worker, task) {
-  const duration = task.durationMs || 500;
+  const duration = task.durationMs || 400;
   let isFailure = false;
+
   if (task.failMode === 'transient' && task.retryCount < 2) isFailure = true;
   if (task.failMode === 'always') isFailure = true;
 
   if (isFailure) {
-    const errorMsg = task.failMode === 'always' ? 'Fatal: Poison pill corrupted payload' : 'Transient Network Timeout (504)';
+    const errorMsg = task.failMode === 'always'
+      ? 'Fatal: Poison pill corrupted payload rejected'
+      : 'Transient Network Gateway Timeout (504)';
+
     if (task.retryCount < (task.maxRetries || 3)) {
       task.retryCount++;
       const delay = (task.backoffMs || 300) * Math.pow(2, task.retryCount - 1);
@@ -189,17 +250,27 @@ function simFinishTask(worker, task) {
       task.status = 'RETRYING';
       simState.queue.push(task);
       simState.metrics.tasksRetried++;
-      addSimLog('RETRY', worker.name, task.id, task.name, task.priority, `Task failed: ${errorMsg} (Scheduling retry #${task.retryCount} in ${delay}ms)`, duration, task.retryCount);
+      addSimLog('RETRY', worker.name, task.id, task.name, task.priority, `Task failed: ${errorMsg} (Exponential Backoff retry #${task.retryCount} in ${delay}ms)`, duration, task.retryCount);
     } else {
       task.status = 'FAILED';
-      simState.dlq.push({ task, error: errorMsg, attempts: task.retryCount, timestamp: Date.now() });
+      simState.dlq.push({
+        taskId: task.id,
+        taskName: task.name,
+        priority: task.priority,
+        task: task,
+        error: errorMsg,
+        totalAttempts: task.retryCount,
+        attempts: task.retryCount,
+        recordedAt: Date.now(),
+        timestamp: Date.now()
+      });
       simState.metrics.tasksFailed++;
-      addSimLog('FAILURE', worker.name, task.id, task.name, task.priority, `PERMANENT FAILURE -> Moved to DLQ (${errorMsg})`, duration, task.retryCount);
+      addSimLog('FAILURE', worker.name, task.id, task.name, task.priority, `PERMANENT FAILURE -> Quarantined in Dead Letter Queue (${errorMsg})`, duration, task.retryCount);
     }
   } else {
     task.status = 'COMPLETED';
     simState.metrics.tasksCompleted++;
-    addSimLog('SUCCESS', worker.name, task.id, task.name, task.priority, `Task completed successfully`, duration, task.retryCount);
+    addSimLog('SUCCESS', worker.name, task.id, task.name, task.priority, `Completed task successfully in ${duration}ms`, duration, task.retryCount);
   }
 
   const finished = simState.metrics.tasksCompleted + simState.metrics.tasksFailed;
@@ -208,6 +279,7 @@ function simFinishTask(worker, task) {
 
   worker.active = false;
   worker.state = 'IDLE';
+  worker.currentTask = null;
   worker.task = null;
   simState.metrics.activeWorkers = simState.workers.filter(x => x.active).length;
   updateUI(simState);
@@ -272,7 +344,7 @@ function updateUI(data) {
 
 function renderQueue(queue) {
   const container = document.getElementById('queueList');
-  if (queue.length === 0) {
+  if (!queue || queue.length === 0) {
     container.innerHTML = `
       <div class="empty-state">
         <div class="empty-icon">⏳</div>
@@ -286,11 +358,11 @@ function renderQueue(queue) {
     <div class="task-card">
       <div class="task-card-header">
         <span class="task-card-title" title="${escapeHtml(task.name)}">${escapeHtml(task.name)}</span>
-        <span class="badge badge-${task.priority.toLowerCase()}">${task.priority}</span>
+        <span class="badge badge-${(task.priority || 'medium').toLowerCase()}">${task.priority}</span>
       </div>
       <div class="task-card-footer">
-        <span class="task-seq">Seq: #${task.sequenceNumber}</span>
-        <span>Retries: ${task.retryCount}</span>
+        <span class="task-seq">Seq: #${task.sequenceNumber || 1}</span>
+        <span>Retries: ${task.retryCount || 0}</span>
       </div>
     </div>
   `).join('');
@@ -300,7 +372,7 @@ function renderWorkers(workers) {
   const container = document.getElementById('workerGrid');
   container.innerHTML = workers.map(w => {
     const isExec = w.state === 'EXECUTING';
-    const task = w.currentTask;
+    const task = w.currentTask || w.task;
 
     return `
       <div class="worker-card ${isExec ? 'executing' : ''}">
@@ -316,8 +388,8 @@ function renderWorkers(workers) {
           ${isExec && task ? `
             <div>Working on: <strong>${escapeHtml(task.name)}</strong></div>
             <div style="display:flex; justify-content:space-between; align-items:center; margin-top:4px;">
-              <span class="badge badge-${task.priority.toLowerCase()}">${task.priority}</span>
-              <span style="font-family:var(--font-mono); font-size:0.75rem; color:#38bdf8;">${task.elapsedMs || 0}ms</span>
+              <span class="badge badge-${(task.priority || 'medium').toLowerCase()}">${task.priority}</span>
+              <span style="font-family:var(--font-mono); font-size:0.75rem; color:#38bdf8;">${task.elapsedMs || task.durationMs || 300}ms</span>
             </div>
             <div class="worker-progress-bar">
               <div class="worker-progress-bar-fill"></div>
@@ -333,7 +405,7 @@ function renderWorkers(workers) {
 
 function renderDLQ(dlq) {
   const container = document.getElementById('dlqList');
-  if (dlq.length === 0) {
+  if (!dlq || dlq.length === 0) {
     container.innerHTML = `
       <div class="empty-state">
         <div class="empty-icon">🛡️</div>
@@ -343,19 +415,27 @@ function renderDLQ(dlq) {
     return;
   }
 
-  container.innerHTML = dlq.map(item => `
-    <div class="dlq-card task-card">
-      <div class="task-card-header">
-        <span class="task-card-title" title="${escapeHtml(item.taskName)}">${escapeHtml(item.taskName)}</span>
-        <span class="badge badge-critical">${item.priority}</span>
+  container.innerHTML = dlq.map(item => {
+    const tName = item.taskName || (item.task ? item.task.name : 'Unknown-Task');
+    const prio = item.priority || (item.task ? item.task.priority : 'CRITICAL');
+    const attempts = item.totalAttempts || item.attempts || 1;
+    const time = item.recordedAt || item.timestamp || Date.now();
+    const errMsg = item.error || (item.finalException ? item.finalException.message : 'Execution Error');
+
+    return `
+      <div class="dlq-card task-card">
+        <div class="task-card-header">
+          <span class="task-card-title" title="${escapeHtml(tName)}">${escapeHtml(tName)}</span>
+          <span class="badge badge-critical">${prio}</span>
+        </div>
+        <div class="task-card-footer">
+          <span>Attempts: ${attempts}</span>
+          <span style="font-family:var(--font-mono);">${new Date(time).toLocaleTimeString()}</span>
+        </div>
+        <div class="dlq-error-msg">${escapeHtml(errMsg)}</div>
       </div>
-      <div class="task-card-footer">
-        <span>Attempts: ${item.totalAttempts}</span>
-        <span style="font-family:var(--font-mono);">${new Date(item.recordedAt).toLocaleTimeString()}</span>
-      </div>
-      <div class="dlq-error-msg">${escapeHtml(item.error)}</div>
-    </div>
-  `).join('');
+    `;
+  }).join('');
 }
 
 function renderLogs() {
@@ -385,31 +465,34 @@ function filterLogs(filterType) {
   renderLogs();
 }
 
-let simSeq = 1;
-
 async function runScenario(scenarioId) {
-  showToast(`Running Scenario #${scenarioId}...`);
+  const id = parseInt(scenarioId, 10);
+  showToast(`Running Scenario #${id}...`);
+
   if (isSimMode) {
-    if (scenarioId === 1) {
-      // Priority Inversion Test
-      simEnqueueTask('Low-Priority-OrderSync-1', 'LOW', 700, 'none', 0, 0);
-      simEnqueueTask('Low-Priority-OrderSync-2', 'LOW', 700, 'none', 0, 0);
-      simEnqueueTask('Medium-Priority-InventoryCheck', 'MEDIUM', 600, 'none', 0, 0);
-      simEnqueueTask('High-Priority-PaymentCapture', 'HIGH', 600, 'none', 0, 0);
-      simEnqueueTask('Critical-Priority-FraudAlert', 'CRITICAL', 500, 'none', 0, 0);
-      simEnqueueTask('Critical-Priority-PrimeDelivery', 'CRITICAL', 500, 'none', 0, 0);
-    } else if (scenarioId === 2) {
-      // Exponential Backoff Retry Test
+    if (id === 1) {
+      // 1. Priority Precedence & FIFO Tie-Breaking
+      simEnqueueTask('Low-OrderSync-1', 'LOW', 700, 'none', 0, 0);
+      simEnqueueTask('Low-OrderSync-2', 'LOW', 700, 'none', 0, 0);
+      simEnqueueTask('Medium-InventoryCheck', 'MEDIUM', 600, 'none', 0, 0);
+      simEnqueueTask('High-PaymentCapture', 'HIGH', 600, 'none', 0, 0);
+      simEnqueueTask('Critical-FraudAlert', 'CRITICAL', 500, 'none', 0, 0);
+      simEnqueueTask('Critical-PrimeDelivery', 'CRITICAL', 500, 'none', 0, 0);
+    } else if (id === 2) {
+      // 2. Exponential Backoff Retry Storm
       simEnqueueTask('PaymentGateway-Charge', 'HIGH', 400, 'transient', 3, 250);
-    } else if (scenarioId === 3) {
-      // Poison Pill to DLQ
-      simEnqueueTask('Corrupted-Payload-Job', 'MEDIUM', 300, 'always', 2, 200);
-    } else if (scenarioId === 4) {
-      // High-Traffic Burst
+      simEnqueueTask('AuthToken-Refresh', 'CRITICAL', 300, 'transient', 2, 200);
+      simEnqueueTask('Inventory-Reserve', 'MEDIUM', 350, 'transient', 2, 200);
+    } else if (id === 3) {
+      // 3. Poison Pill Isolation (DLQ)
+      simEnqueueTask('Corrupted-Payload-Job-1', 'MEDIUM', 300, 'always', 2, 200);
+      simEnqueueTask('Malformed-JSON-Record-2', 'HIGH', 300, 'always', 1, 150);
+    } else if (id === 4) {
+      // 4. High-Load Concurrency Surge (16 Jobs)
       const priorities = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
-      for (let i = 1; i <= 12; i++) {
+      for (let i = 1; i <= 16; i++) {
         const p = priorities[i % 4];
-        simEnqueueTask(`Burst-Job-${i}`, p, 300 + (i * 30), 'none', 0, 0);
+        simEnqueueTask(`Surge-Job-${i}`, p, 250 + (i * 20), 'none', 0, 0);
       }
     }
     return;
@@ -418,7 +501,7 @@ async function runScenario(scenarioId) {
   await fetch('/api/scenarios/run', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ scenario: scenarioId })
+    body: JSON.stringify({ scenario: id })
   });
   fetchStatus();
 }
@@ -426,8 +509,7 @@ async function runScenario(scenarioId) {
 function simEnqueueTask(name, priority, durationMs, failMode, maxRetries, backoffMs) {
   const task = {
     id: 't-' + Math.random().toString(36).substr(2, 6),
-    seq: simSeq++,
-    sequenceNumber: simSeq,
+    sequenceNumber: simSeq++,
     name: name,
     priority: priority,
     durationMs: parseInt(durationMs) || 500,
@@ -441,7 +523,7 @@ function simEnqueueTask(name, priority, durationMs, failMode, maxRetries, backof
   simState.queue.push(task);
   simState.metrics.tasksSubmitted++;
   simState.metrics.queueSize = simState.queue.length;
-  addSimLog('SUBMITTED', 'API-Client', task.id, task.name, task.priority, 'Task submitted with priority ' + task.priority, 0, 0);
+  addSimLog('SUBMITTED', 'Dispatcher', task.id, task.name, task.priority, `Task submitted with [${task.priority}] priority (Seq #${task.sequenceNumber})`, 0, 0);
   updateUI(simState);
 }
 
