@@ -2,12 +2,12 @@
 
 A production-grade, lightweight Task Scheduler and Job Queue implemented from scratch in Java to demonstrate core Operating Systems and Concurrency primitives for technical interviews.
 
-> 🚀 **Live Interactive Web Demo:** [https://anvitha2011.github.io/task-scheduler/](https://anvitha2011.github.io/task-scheduler/)  
-> 📦 **GitHub Repository:** [https://github.com/anvitha2011/task-scheduler](https://github.com/anvitha2011/task-scheduler)
+>  **Live Interactive Web Demo:** [https://anvitha2011.github.io/task-scheduler/](https://anvitha2011.github.io/task-scheduler/)  
+> 
 
 ---
 
-## 🎯 Architecture Overview
+## Architecture Overview
 
 ```
                       +-----------------------------+
@@ -52,7 +52,7 @@ A production-grade, lightweight Task Scheduler and Job Queue implemented from sc
 
 ---
 
-## 🚀 Key Features
+## Key Features
 
 1. **Custom Priority Blocking Queue:**
    - Mutual exclusion via `ReentrantLock`.
@@ -75,7 +75,7 @@ A production-grade, lightweight Task Scheduler and Job Queue implemented from sc
 
 ---
 
-## 🛠️ How to Run
+##  How to Run
 
 ### 1. Launch the Interactive Web Dashboard (Localhost GUI)
 ```powershell
