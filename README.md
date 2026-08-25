@@ -2,6 +2,9 @@
 
 A production-grade, lightweight Task Scheduler and Job Queue implemented from scratch in Java to demonstrate core Operating Systems and Concurrency primitives for technical interviews.
 
+> 🚀 **Live Interactive Web Demo:** [https://anvitha2011.github.io/task-scheduler/](https://anvitha2011.github.io/task-scheduler/)  
+> 📦 **GitHub Repository:** [https://github.com/anvitha2011/task-scheduler](https://github.com/anvitha2011/task-scheduler)
+
 ---
 
 ## 🎯 Architecture Overview
