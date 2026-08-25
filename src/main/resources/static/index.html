@@ -30,19 +30,16 @@
     <div class="header-center">
       <div class="connection-pill" id="connPill">
         <span class="pulse-dot"></span>
-        <span id="connStatusText">CONNECTING...</span>
+        <span id="connStatusText">Connecting...</span>
       </div>
     </div>
 
     <div class="header-right">
-      <button class="btn btn-outline" id="btnOpenBackendModal" title="Configure Cloud Backend (Render)">
-        Backend API
-      </button>
       <button class="btn btn-primary" id="btnOpenSubmitModal">
         Dispatch Task
       </button>
       <button class="btn btn-outline" id="btnRunScenarios">
-        Scenarios
+        Demonstrations
       </button>
       <button class="btn btn-icon" id="btnResetScheduler" title="Reset Scheduler State">
         <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path></svg>
@@ -147,11 +144,11 @@
 
     </section>
 
-    <!-- INTERACTIVE SCENARIOS -->
+    <!-- SYSTEM DEMONSTRATIONS -->
     <section class="scenario-panel">
       <div class="scenario-header">
-        <h3>Test Scenarios</h3>
-        <span class="subtext">Simulate concurrency patterns, retry storms, and failure isolation</span>
+        <h3>System Demonstrations</h3>
+        <span class="subtext">Demonstrate priority ordering, exponential backoff retries, and failure isolation</span>
       </div>
 
       <div class="scenario-buttons-grid">
@@ -311,38 +308,6 @@
         <div class="modal-footer">
           <button type="button" class="btn btn-outline" id="btnCancelModal">Cancel</button>
           <button type="submit" class="btn btn-primary">Submit to Queue</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <!-- CLOUD BACKEND SETTINGS MODAL -->
-  <div class="modal-backdrop" id="backendModal">
-    <div class="modal-card">
-      <div class="modal-header">
-        <div class="modal-title">
-          <h3>Cloud Backend Connection (Render)</h3>
-        </div>
-        <button class="btn-close" id="btnCloseBackendModal">&times;</button>
-      </div>
-
-      <form id="backendForm" onsubmit="handleBackendSave(event)">
-        <div class="form-group">
-          <label for="renderUrlInput">Render Web Service URL</label>
-          <input type="url" id="renderUrlInput" placeholder="https://your-service.onrender.com" style="width:100%;">
-          <span class="subtext" style="display:block; margin-top:6px; color:var(--text-muted); font-size:0.8rem;">
-            Enter your deployed Render backend URL or leave empty to use Standalone Simulation.
-          </span>
-        </div>
-
-        <div style="background:var(--bg-subtle); border:1px solid var(--border); border-radius:6px; padding:10px; margin-bottom:12px;">
-          <div style="font-weight:600; font-size:0.82rem; margin-bottom:2px; color:var(--text-primary);">Architecture:</div>
-          <code style="font-size:0.78rem; color:var(--color-primary);">GitHub Pages (Frontend) -> Render (Java 17 Backend Engine)</code>
-        </div>
-
-        <div class="modal-footer">
-          <button type="button" class="btn btn-outline" id="btnResetBackend">Reset to Auto</button>
-          <button type="submit" class="btn btn-primary">Save & Connect</button>
         </div>
       </form>
     </div>

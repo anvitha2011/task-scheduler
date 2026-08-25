@@ -5,18 +5,6 @@ let eventSource = null;
 let isSimMode = false;
 let simSeq = 1;
 
-// Cloud Backend Configuration
-let configuredRenderUrl = localStorage.getItem('RENDER_BACKEND_URL') || '';
-
-function getApiBase() {
-  const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-  if (isLocal) return '';
-  if (configuredRenderUrl && configuredRenderUrl.trim() !== '') {
-    return configuredRenderUrl.trim().replace(/\/+$/, '');
-  }
-  return '';
-}
-
 let simState = {
   metrics: {
     tasksSubmitted: 0,
@@ -63,25 +51,6 @@ function setupEventListeners() {
     submitModal.classList.remove('active');
   });
 
-  // Modal Handlers (Backend Settings)
-  const backendModal = document.getElementById('backendModal');
-  const backendInput = document.getElementById('renderUrlInput');
-  document.getElementById('btnOpenBackendModal').addEventListener('click', () => {
-    backendInput.value = configuredRenderUrl;
-    backendModal.classList.add('active');
-  });
-  document.getElementById('btnCloseBackendModal').addEventListener('click', () => {
-    backendModal.classList.remove('active');
-  });
-  document.getElementById('btnResetBackend').addEventListener('click', () => {
-    localStorage.removeItem('RENDER_BACKEND_URL');
-    configuredRenderUrl = '';
-    backendInput.value = '';
-    showToast('Reset to Standalone Simulation mode');
-    backendModal.classList.remove('active');
-    initSimEngine();
-  });
-
   // Action Buttons
   document.getElementById('btnResetScheduler').addEventListener('click', async () => {
     if (confirm('Reset task scheduler, pool, and metrics to fresh state?')) {
@@ -114,7 +83,7 @@ function setupEventListeners() {
         return;
       }
       try {
-        await fetch(getApiBase() + '/api/scheduler/reset', { method: 'POST' });
+        await fetch('/api/scheduler/reset', { method: 'POST' });
         showToast('Task Scheduler reset successfully');
         fetchStatus();
       } catch (err) {
@@ -154,7 +123,7 @@ function setupEventListeners() {
       return;
     }
     try {
-      const res = await fetch(getApiBase() + '/api/dlq/replay', { method: 'POST' });
+      const res = await fetch('/api/dlq/replay', { method: 'POST' });
       const data = await res.json();
       showToast(`Replayed ${data.replayed} tasks from DLQ back to Queue`);
       fetchStatus();
@@ -171,7 +140,7 @@ function setupEventListeners() {
       return;
     }
     try {
-      await fetch(getApiBase() + '/api/dlq/clear', { method: 'POST' });
+      await fetch('/api/dlq/clear', { method: 'POST' });
       showToast('Dead Letter Queue cleared');
       fetchStatus();
     } catch (e) {
@@ -190,28 +159,8 @@ function setupEventListeners() {
   });
 }
 
-function handleBackendSave(event) {
-  event.preventDefault();
-  const inputVal = document.getElementById('renderUrlInput').value.trim();
-  if (inputVal) {
-    localStorage.setItem('RENDER_BACKEND_URL', inputVal);
-    configuredRenderUrl = inputVal;
-    showToast('Saved Render Backend URL: ' + inputVal);
-  } else {
-    localStorage.removeItem('RENDER_BACKEND_URL');
-    configuredRenderUrl = '';
-    showToast('Switched to Standalone Simulation mode');
-  }
-  document.getElementById('backendModal').classList.remove('active');
-  isSimMode = false;
-  initSSE();
-  fetchStatus();
-}
-
 function initSSE() {
   const connStatus = document.getElementById('connStatusText');
-  const connPill = document.getElementById('connPill');
-  const apiBase = getApiBase();
 
   if (eventSource) {
     try { eventSource.close(); } catch (e) {}
@@ -219,17 +168,15 @@ function initSSE() {
 
   if (window.EventSource) {
     try {
-      eventSource = new EventSource(apiBase + '/api/stream');
+      eventSource = new EventSource('/api/stream');
 
       eventSource.onopen = () => {
-        const isRender = apiBase.includes('onrender.com');
-        connStatus.innerText = isRender ? 'RENDER (JAVA 17 LIVE)' : 'JAVA 17 STREAM LIVE';
+        connStatus.innerText = 'Backend: Connected';
         isSimMode = false;
       };
 
       eventSource.addEventListener('CONNECTED', () => {
-        const isRender = apiBase.includes('onrender.com');
-        connStatus.innerText = isRender ? 'RENDER (ONLINE)' : 'ONLINE (JAVA 17)';
+        connStatus.innerText = 'Backend: Connected';
       });
 
       eventSource.addEventListener('STARTED', () => { fetchStatus(); });
@@ -253,7 +200,7 @@ function initSimEngine() {
   if (isSimMode) return;
   isSimMode = true;
   const connStatus = document.getElementById('connStatusText');
-  connStatus.innerText = 'SIMULATION ACTIVE';
+  connStatus.innerText = 'Simulation Active';
   setInterval(simWorkerTick, 250);
 }
 
@@ -361,17 +308,15 @@ function addSimLog(type, workerName, taskId, taskName, priority, message, durati
 
 async function fetchStatus() {
   if (isSimMode) return;
-  const apiBase = getApiBase();
   try {
-    const res = await fetch(apiBase + '/api/status');
+    const res = await fetch('/api/status');
     if (!res.ok) {
       initSimEngine();
       return;
     }
     const data = await res.json();
     const connStatus = document.getElementById('connStatusText');
-    const isRender = apiBase.includes('onrender.com');
-    connStatus.innerText = isRender ? 'RENDER (JAVA 17 LIVE)' : (apiBase ? 'CLOUD BACKEND' : 'ONLINE (JAVA 17)');
+    connStatus.innerText = 'Backend: Connected';
     updateUI(data);
   } catch (err) {
     if (!isSimMode) initSimEngine();
@@ -536,7 +481,6 @@ function filterLogs(filterType) {
 async function runScenario(scenarioId) {
   const id = parseInt(scenarioId, 10);
   showToast(`Running Scenario #${id}`);
-  const apiBase = getApiBase();
 
   if (isSimMode) {
     if (id === 1) {
@@ -568,7 +512,7 @@ async function runScenario(scenarioId) {
   }
 
   try {
-    await fetch(apiBase + '/api/scenarios/run', {
+    await fetch('/api/scenarios/run', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ scenario: id })
@@ -609,7 +553,6 @@ async function handleTaskSubmit(event) {
   const retryType = document.getElementById('retryType').value;
   const maxRetries = document.getElementById('maxRetries').value;
   const backoffMs = document.getElementById('backoffMs').value;
-  const apiBase = getApiBase();
 
   if (isSimMode) {
     simEnqueueTask(name, priority, durationMs, failMode, maxRetries, backoffMs);
@@ -629,7 +572,7 @@ async function handleTaskSubmit(event) {
   };
 
   try {
-    const res = await fetch(apiBase + '/api/tasks', {
+    const res = await fetch('/api/tasks', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
