@@ -31,10 +31,10 @@ let simState = {
     successRate: '100.0'
   },
   workers: [
-    { name: 'worker-thread-1', state: 'IDLE', active: false, currentTask: null, task: null },
-    { name: 'worker-thread-2', state: 'IDLE', active: false, currentTask: null, task: null },
-    { name: 'worker-thread-3', state: 'IDLE', active: false, currentTask: null, task: null },
-    { name: 'worker-thread-4', state: 'IDLE', active: false, currentTask: null, task: null }
+    { name: 'worker-1', state: 'IDLE', active: false, currentTask: null, task: null },
+    { name: 'worker-2', state: 'IDLE', active: false, currentTask: null, task: null },
+    { name: 'worker-3', state: 'IDLE', active: false, currentTask: null, task: null },
+    { name: 'worker-4', state: 'IDLE', active: false, currentTask: null, task: null }
   ],
   queue: [],
   dlq: [],
@@ -43,7 +43,7 @@ let simState = {
 
 document.addEventListener('DOMContentLoaded', () => {
   setupEventListeners();
-  addSimLog('SUCCESS', 'System', 'init-001', 'TaskSchedulerEngine', 'CRITICAL', 'Task Scheduler active. Ready for job submissions and scenario simulations.', 0, 0);
+  addSimLog('SUCCESS', 'System', 'init-001', 'TaskSchedulerEngine', 'CRITICAL', 'Task Scheduler engine active. Ready for job submissions and scenario simulations.', 0, 0);
   updateUI(simState);
   initSSE();
   fetchStatus();
@@ -77,7 +77,7 @@ function setupEventListeners() {
     localStorage.removeItem('RENDER_BACKEND_URL');
     configuredRenderUrl = '';
     backendInput.value = '';
-    showToast('Reset to Auto Standalone mode');
+    showToast('Reset to Standalone Simulation mode');
     backendModal.classList.remove('active');
     initSimEngine();
   });
@@ -127,7 +127,7 @@ function setupEventListeners() {
     if (isSimMode) {
       const count = simState.dlq.length;
       if (count === 0) {
-        showToast('Dead Letter Queue is already empty');
+        showToast('Dead Letter Queue is empty');
         return;
       }
       simState.dlq.forEach(d => {
@@ -224,7 +224,6 @@ function initSSE() {
       eventSource.onopen = () => {
         const isRender = apiBase.includes('onrender.com');
         connStatus.innerText = isRender ? 'RENDER (JAVA 17 LIVE)' : 'JAVA 17 STREAM LIVE';
-        connPill.style.borderColor = 'rgba(16, 185, 129, 0.4)';
         isSimMode = false;
       };
 
@@ -254,9 +253,7 @@ function initSimEngine() {
   if (isSimMode) return;
   isSimMode = true;
   const connStatus = document.getElementById('connStatusText');
-  const connPill = document.getElementById('connPill');
-  connStatus.innerText = 'ONLINE (BROWSER SIM)';
-  connPill.style.borderColor = 'rgba(16, 185, 129, 0.4)';
+  connStatus.innerText = 'SIMULATION ACTIVE';
   setInterval(simWorkerTick, 250);
 }
 
@@ -309,7 +306,7 @@ function simFinishTask(worker, task) {
 
   if (isFailure) {
     const errorMsg = task.failMode === 'always'
-      ? 'Fatal: Poison pill corrupted payload rejected'
+      ? 'Fatal: Poison pill payload rejected'
       : 'Transient Network Gateway Timeout (504)';
 
     if (task.retryCount < (task.maxRetries || 3)) {
@@ -319,7 +316,7 @@ function simFinishTask(worker, task) {
       task.status = 'RETRYING';
       simState.queue.push(task);
       simState.metrics.tasksRetried++;
-      addSimLog('RETRY', worker.name, task.id, task.name, task.priority, `Task failed: ${errorMsg} (Exponential Backoff retry #${task.retryCount} in ${delay}ms)`, duration, task.retryCount);
+      addSimLog('RETRY', worker.name, task.id, task.name, task.priority, `Task failed: ${errorMsg} (Backoff retry #${task.retryCount} in ${delay}ms)`, duration, task.retryCount);
     } else {
       task.status = 'FAILED';
       simState.dlq.push({
@@ -339,7 +336,7 @@ function simFinishTask(worker, task) {
   } else {
     task.status = 'COMPLETED';
     simState.metrics.tasksCompleted++;
-    addSimLog('SUCCESS', worker.name, task.id, task.name, task.priority, `Completed task successfully in ${duration}ms`, duration, task.retryCount);
+    addSimLog('SUCCESS', worker.name, task.id, task.name, task.priority, `Completed task in ${duration}ms`, duration, task.retryCount);
   }
 
   const finished = simState.metrics.tasksCompleted + simState.metrics.tasksFailed;
@@ -420,7 +417,6 @@ function renderQueue(queue) {
   if (!queue || queue.length === 0) {
     container.innerHTML = `
       <div class="empty-state">
-        <div class="empty-icon">⏳</div>
         <p>Queue is empty</p>
         <span>Ready to accept priority jobs</span>
       </div>`;
@@ -434,7 +430,7 @@ function renderQueue(queue) {
         <span class="badge badge-${(task.priority || 'medium').toLowerCase()}">${task.priority}</span>
       </div>
       <div class="task-card-footer">
-        <span class="task-seq">Seq: #${task.sequenceNumber || 1}</span>
+        <span class="task-seq">Seq #${task.sequenceNumber || 1}</span>
         <span>Retries: ${task.retryCount || 0}</span>
       </div>
     </div>
@@ -459,16 +455,16 @@ function renderWorkers(workers) {
 
         <div class="worker-task-info">
           ${isExec && task ? `
-            <div>Working on: <strong>${escapeHtml(task.name)}</strong></div>
+            <div>Task: <strong>${escapeHtml(task.name)}</strong></div>
             <div style="display:flex; justify-content:space-between; align-items:center; margin-top:4px;">
               <span class="badge badge-${(task.priority || 'medium').toLowerCase()}">${task.priority}</span>
-              <span style="font-family:var(--font-mono); font-size:0.75rem; color:#38bdf8;">${task.elapsedMs || task.durationMs || 300}ms</span>
+              <span style="font-family:var(--font-mono); font-size:0.72rem; color:var(--text-secondary);">${task.elapsedMs || task.durationMs || 300}ms</span>
             </div>
             <div class="worker-progress-bar">
               <div class="worker-progress-bar-fill"></div>
             </div>
           ` : `
-            <span style="color:var(--text-muted); font-size:0.75rem;">Waiting for highest-priority task...</span>
+            <span style="color:var(--text-muted); font-size:0.75rem;">Waiting for task in queue...</span>
           `}
         </div>
       </div>
@@ -481,9 +477,8 @@ function renderDLQ(dlq) {
   if (!dlq || dlq.length === 0) {
     container.innerHTML = `
       <div class="empty-state">
-        <div class="empty-icon">🛡️</div>
-        <p>DLQ is clean</p>
-        <span>No unhandled poison pills detected</span>
+        <p>Dead Letter Queue is empty</p>
+        <span>No quarantined poison pills</span>
       </div>`;
     return;
   }
@@ -518,7 +513,7 @@ function renderLogs() {
     : allLogs.filter(l => l.type === currentFilter || (currentFilter === 'FAILURE' && (l.type === 'FAILURE' || l.type === 'DLQ_REPLAY')));
 
   if (filtered.length === 0) {
-    container.innerHTML = `<div style="text-align:center; padding:2rem; color:var(--text-muted);">No log entries for filter: ${currentFilter}</div>`;
+    container.innerHTML = `<div style="text-align:center; padding:1.5rem; color:var(--text-muted); font-size:0.75rem;">No log entries for filter: ${currentFilter}</div>`;
     return;
   }
 
@@ -540,7 +535,7 @@ function filterLogs(filterType) {
 
 async function runScenario(scenarioId) {
   const id = parseInt(scenarioId, 10);
-  showToast(`Running Scenario #${id}...`);
+  showToast(`Running Scenario #${id}`);
   const apiBase = getApiBase();
 
   if (isSimMode) {
@@ -619,7 +614,7 @@ async function handleTaskSubmit(event) {
   if (isSimMode) {
     simEnqueueTask(name, priority, durationMs, failMode, maxRetries, backoffMs);
     document.getElementById('submitModal').classList.remove('active');
-    showToast(`Task '${name}' enqueued successfully!`);
+    showToast(`Task '${name}' enqueued successfully`);
     return;
   }
 
@@ -642,12 +637,12 @@ async function handleTaskSubmit(event) {
 
     if (res.ok) {
       document.getElementById('submitModal').classList.remove('active');
-      showToast(`Task '${name}' enqueued to Java 17 backend!`);
+      showToast(`Task '${name}' enqueued to backend`);
       fetchStatus();
     }
   } catch (err) {
     document.getElementById('submitModal').classList.remove('active');
-    showToast(`Task '${name}' enqueued!`);
+    showToast(`Task '${name}' enqueued`);
   }
 }
 
@@ -669,7 +664,7 @@ function showToast(msg) {
   container.appendChild(toast);
   setTimeout(() => {
     toast.style.opacity = '0';
-    toast.style.transform = 'translateY(10px)';
+    toast.style.transform = 'translateY(6px)';
     setTimeout(() => toast.remove(), 300);
   }, 2500);
 }

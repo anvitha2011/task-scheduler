@@ -6,26 +6,24 @@
   <title>Task Scheduler & Concurrency Engine</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <div class="ambient-glow glow-1"></div>
-  <div class="ambient-glow glow-2"></div>
 
   <!-- TOP HEADER -->
   <header class="app-header">
     <div class="header-left">
       <div class="logo-badge">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
           <line x1="8" y1="21" x2="16" y2="21"></line>
           <line x1="12" y1="17" x2="12" y2="21"></line>
         </svg>
       </div>
       <div class="logo-text">
-        <h1>Task Scheduler & Job Queue</h1>
-        <span class="subtext">Multi-Threaded Concurrency Engine (Java)</span>
+        <h1>Task Scheduler</h1>
+        <span class="subtext">Concurrent Background Job Engine</span>
       </div>
     </div>
 
@@ -38,19 +36,16 @@
 
     <div class="header-right">
       <button class="btn btn-outline" id="btnOpenBackendModal" title="Configure Cloud Backend (Render)">
-        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
         Backend API
       </button>
-      <button class="btn btn-outline" id="btnOpenSubmitModal">
-        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+      <button class="btn btn-primary" id="btnOpenSubmitModal">
         Dispatch Task
       </button>
-      <button class="btn btn-primary" id="btnRunScenarios">
-        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
-        Scenario Deck
+      <button class="btn btn-outline" id="btnRunScenarios">
+        Scenarios
       </button>
-      <button class="btn btn-icon" id="btnResetScheduler" title="Reset Scheduler & Metrics">
-        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path></svg>
+      <button class="btn btn-icon" id="btnResetScheduler" title="Reset Scheduler State">
+        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path></svg>
       </button>
     </div>
   </header>
@@ -63,191 +58,151 @@
       <div class="metric-card">
         <div class="metric-header">
           <span class="metric-title">Submitted</span>
-          <span class="metric-icon">📥</span>
         </div>
         <div class="metric-value" id="kpiSubmitted">0</div>
         <div class="metric-footer">Total queued jobs</div>
       </div>
 
-      <div class="metric-card card-success">
+      <div class="metric-card">
         <div class="metric-header">
           <span class="metric-title">Completed</span>
-          <span class="metric-icon">✅</span>
         </div>
         <div class="metric-value" id="kpiCompleted">0</div>
         <div class="metric-footer" id="kpiSuccessRate">100.0% Success</div>
       </div>
 
-      <div class="metric-card card-active">
+      <div class="metric-card">
         <div class="metric-header">
           <span class="metric-title">Active Workers</span>
-          <span class="metric-icon">⚡</span>
         </div>
         <div class="metric-value" id="kpiActiveWorkers">0 <span class="metric-sub">/ 4</span></div>
         <div class="metric-footer" id="kpiPoolUtilization">0% Utilization</div>
       </div>
 
-      <div class="metric-card card-queue">
+      <div class="metric-card">
         <div class="metric-header">
           <span class="metric-title">In Queue</span>
-          <span class="metric-icon">⏳</span>
         </div>
         <div class="metric-value" id="kpiQueueDepth">0</div>
         <div class="metric-footer">Heap ordering active</div>
       </div>
 
-      <div class="metric-card card-retry">
+      <div class="metric-card">
         <div class="metric-header">
-          <span class="metric-title">Retries Fired</span>
-          <span class="metric-icon">🔄</span>
+          <span class="metric-title">Retries</span>
         </div>
         <div class="metric-value" id="kpiRetries">0</div>
-        <div class="metric-footer">Exp. backoff timers</div>
+        <div class="metric-footer">Exponential backoff</div>
       </div>
 
-      <div class="metric-card card-dlq">
+      <div class="metric-card">
         <div class="metric-header">
-          <span class="metric-title">DLQ (Poison Pills)</span>
-          <span class="metric-icon">☠️</span>
+          <span class="metric-title">Dead Letter Queue</span>
         </div>
         <div class="metric-value" id="kpiDlq">0</div>
-        <div class="metric-footer">Quarantined failures</div>
+        <div class="metric-footer">Quarantined jobs</div>
       </div>
 
       <div class="metric-card">
         <div class="metric-header">
           <span class="metric-title">Avg Latency</span>
-          <span class="metric-icon">⏱️</span>
         </div>
         <div class="metric-value" id="kpiAvgExec">0.0<span class="metric-sub">ms</span></div>
-        <div class="metric-footer">Execution duration</div>
+        <div class="metric-footer">Per task execution</div>
       </div>
     </section>
 
-    <!-- LIVE PIPELINE VISUALIZATION (3 COLUMNS) -->
-    <section class="pipeline-grid">
-      
-      <!-- COLUMN 1: PRIORITY BLOCKING QUEUE -->
-      <div class="pipeline-column">
-        <div class="column-header">
-          <div class="column-title-group">
-            <span class="col-indicator col-queue-ind"></span>
-            <h2>Priority Blocking Queue</h2>
-          </div>
-          <span class="badge badge-queue" id="queueBadge">0 Pending</span>
-        </div>
-        <div class="column-desc">
-          <span>ReentrantLock + Conditions (notEmpty / notFull)</span>
-        </div>
+    <!-- CORE PANELS (WORKERS + QUEUE) -->
+    <section class="core-grid">
 
-        <div class="pipeline-card-list" id="queueList">
-          <div class="empty-state">
-            <div class="empty-icon">⏳</div>
-            <p>Queue is empty</p>
-            <span>Ready to accept priority jobs</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- COLUMN 2: WORKER THREAD POOL -->
-      <div class="pipeline-column">
-        <div class="column-header">
-          <div class="column-title-group">
-            <span class="col-indicator col-worker-ind"></span>
-            <h2>Worker Thread Pool</h2>
-          </div>
-          <span class="badge badge-worker" id="workersBadge">4 Threads</span>
-        </div>
-        <div class="column-desc">
-          <span>Consumer event loops with fault-isolation</span>
-        </div>
-
-        <div class="worker-grid" id="workerGrid">
-          <!-- Worker cards rendered dynamically -->
-        </div>
-      </div>
-
-      <!-- COLUMN 3: DEAD LETTER QUEUE (DLQ) -->
-      <div class="pipeline-column">
-        <div class="column-header">
-          <div class="column-title-group">
-            <span class="col-indicator col-dlq-ind"></span>
-            <h2>Dead Letter Queue (DLQ)</h2>
-          </div>
-          <div class="dlq-actions">
-            <button class="btn btn-xs btn-outline" id="btnReplayDlq" title="Replay all DLQ jobs back into Priority Queue">Replay All</button>
-            <button class="btn btn-xs btn-outline" id="btnClearDlq" title="Clear DLQ">Clear</button>
-          </div>
-        </div>
-        <div class="column-desc">
-          <span>Poison pills quarantined after max retry exhaustion</span>
-        </div>
-
-        <div class="pipeline-card-list" id="dlqList">
-          <div class="empty-state">
-            <div class="empty-icon">🛡️</div>
-            <p>DLQ is clean</p>
-            <span>No unhandled poison pills detected</span>
-          </div>
-        </div>
-      </div>
-
-    </section>
-
-    <!-- BOTTOM DECK: SCENARIO LAUNCHER & LIVE EVENT LOG -->
-    <section class="bottom-deck">
-      
-      <!-- SCENARIO LAUNCHER CARDS -->
-      <div class="deck-panel scenario-panel">
+      <!-- WORKER THREADS PANEL -->
+      <div class="panel">
         <div class="panel-header">
           <div class="panel-title">
-            <span class="panel-icon">⚡</span>
-            <h3>Interactive Scenarios</h3>
+            <h3>Worker Pool</h3>
           </div>
-          <span class="subtext">1-Click Live Simulations</span>
+          <span class="panel-badge" id="workersBadge">4 Threads</span>
         </div>
+        <div class="panel-body">
+          <div class="worker-grid" id="workerGrid">
+            <!-- Rendered dynamically -->
+          </div>
+        </div>
+      </div>
 
-        <div class="scenario-buttons-grid">
-          <button class="scenario-card" onclick="runScenario('1')">
-            <div class="scen-icon scen-1">🎯</div>
-            <div class="scen-info">
-              <h4>1. Priority Precedence & FIFO Tie-Breaking</h4>
-              <p>Submits mixed Low, Med, High & Critical tasks to prove priority reordering & starvation prevention.</p>
-            </div>
-          </button>
+      <!-- PRIORITY QUEUE PANEL -->
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">
+            <h3>Priority Queue</h3>
+          </div>
+          <span class="panel-badge" id="queueBadge">0 Pending</span>
+        </div>
+        <div class="panel-body">
+          <div class="queue-list" id="queueList">
+            <!-- Rendered dynamically -->
+          </div>
+        </div>
+      </div>
 
-          <button class="scenario-card" onclick="runScenario('2')">
-            <div class="scen-icon scen-2">🔄</div>
-            <div class="scen-info">
-              <h4>2. Exponential Backoff Retry Storm</h4>
-              <p>Simulates transient 504 gateway failures that backoff (200ms -> 400ms -> 800ms) and recover.</p>
-            </div>
-          </button>
+    </section>
 
-          <button class="scenario-card" onclick="runScenario('3')">
-            <div class="scen-icon scen-3">☠️</div>
-            <div class="scen-info">
-              <h4>3. Poison Pill Isolation (DLQ)</h4>
-              <p>Submits corrupted JSON payloads that exceed 2 retries and route directly to Dead Letter Queue.</p>
-            </div>
-          </button>
+    <!-- INTERACTIVE SCENARIOS -->
+    <section class="scenario-panel">
+      <div class="scenario-header">
+        <h3>Test Scenarios</h3>
+        <span class="subtext">Simulate concurrency patterns, retry storms, and failure isolation</span>
+      </div>
 
-          <button class="scenario-card" onclick="runScenario('4')">
-            <div class="scen-icon scen-4">🚀</div>
-            <div class="scen-info">
-              <h4>4. High-Load Concurrency Surge (24 Jobs)</h4>
-              <p>Floods 24 concurrent mixed-priority jobs simultaneously to stress-test high throughput drainage.</p>
-            </div>
-          </button>
+      <div class="scenario-buttons-grid">
+        <button class="scenario-card" onclick="runScenario(1)">
+          <h4>1. Priority Precedence</h4>
+          <p>Dispatches mixed Low, Medium, High, and Critical tasks to demonstrate min-heap priority ordering and FIFO sequence tie-breaking.</p>
+        </button>
+
+        <button class="scenario-card" onclick="runScenario(2)">
+          <h4>2. Exponential Backoff</h4>
+          <p>Simulates transient 504 network errors that retry with non-blocking exponential backoff (200ms -> 400ms -> 800ms) and recover.</p>
+        </button>
+
+        <button class="scenario-card" onclick="runScenario(3)">
+          <h4>3. Poison Pill Isolation (DLQ)</h4>
+          <p>Dispatches permanently failing payloads that exhaust retries and route directly to the Dead Letter Queue.</p>
+        </button>
+
+        <button class="scenario-card" onclick="runScenario(4)">
+          <h4>4. High-Load Surge (16 Jobs)</h4>
+          <p>Floods 16 concurrent mixed-priority tasks simultaneously to test thread pool execution and throughput drainage.</p>
+        </button>
+      </div>
+    </section>
+
+    <!-- LOWER DECK: DLQ & EVENT LOGS -->
+    <section class="deck-grid">
+
+      <!-- DEAD LETTER QUEUE (DLQ) -->
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">
+            <h3>Dead Letter Queue</h3>
+          </div>
+          <div class="log-controls">
+            <button class="btn btn-xs btn-outline" id="btnReplayDlq" title="Re-enqueue all quarantined tasks">Replay All</button>
+            <button class="btn btn-xs btn-outline" id="btnClearDlq" title="Clear Dead Letter Queue">Clear DLQ</button>
+          </div>
+        </div>
+        <div class="panel-body">
+          <div class="dlq-list" id="dlqList">
+            <!-- Rendered dynamically -->
+          </div>
         </div>
       </div>
 
       <!-- REAL-TIME EVENT STREAM LOG -->
-      <div class="deck-panel logs-panel">
+      <div class="panel">
         <div class="panel-header">
           <div class="panel-title">
-            <span class="panel-icon">📜</span>
-            <h3>Real-Time Event Stream</h3>
+            <h3>Event Stream</h3>
           </div>
           <div class="log-controls">
             <button class="btn btn-xs btn-outline" id="btnFilterAll" onclick="filterLogs('ALL')">All</button>
@@ -259,9 +214,10 @@
             </button>
           </div>
         </div>
-
-        <div class="logs-container" id="logsContainer">
-          <!-- Live log items rendered dynamically -->
+        <div class="panel-body" style="padding:0.75rem;">
+          <div class="logs-container" id="logsContainer">
+            <!-- Live log items rendered dynamically -->
+          </div>
         </div>
       </div>
 
@@ -274,7 +230,6 @@
     <div class="modal-card">
       <div class="modal-header">
         <div class="modal-title">
-          <span class="modal-icon">🚀</span>
           <h3>Dispatch Custom Task</h3>
         </div>
         <button class="btn-close" id="btnCloseModal">&times;</button>
@@ -290,10 +245,10 @@
           <div class="form-group">
             <label for="taskPriority">Priority Tier</label>
             <select id="taskPriority">
-              <option value="CRITICAL">🔥 CRITICAL (Highest)</option>
-              <option value="HIGH">⚡ HIGH</option>
-              <option value="MEDIUM" selected>🔹 MEDIUM</option>
-              <option value="LOW">🌱 LOW (Lowest)</option>
+              <option value="CRITICAL">Critical (Highest)</option>
+              <option value="HIGH">High</option>
+              <option value="MEDIUM" selected>Medium</option>
+              <option value="LOW">Low (Lowest)</option>
             </select>
           </div>
 
@@ -310,33 +265,33 @@
               <input type="radio" name="failMode" value="none" checked onchange="toggleRetryOptions()">
               <div class="radio-content">
                 <span class="radio-title">Always Succeed</span>
-                <span class="radio-desc">Normal healthy execution</span>
+                <span class="radio-desc">Normal execution</span>
               </div>
             </label>
 
             <label class="radio-card">
               <input type="radio" name="failMode" value="transient" onchange="toggleRetryOptions()">
               <div class="radio-content">
-                <span class="radio-title">Transient 504 Timeout</span>
+                <span class="radio-title">Transient 504</span>
                 <span class="radio-desc">Fails 2 times then succeeds</span>
               </div>
             </label>
 
             <label class="radio-card">
-              <input type="radio" name="failMode" value="permanent" onchange="toggleRetryOptions()">
+              <input type="radio" name="failMode" value="always" onchange="toggleRetryOptions()">
               <div class="radio-content">
                 <span class="radio-title">Poison Pill</span>
-                <span class="radio-desc">Permanently fails -> DLQ</span>
+                <span class="radio-desc">Always fails -> DLQ</span>
               </div>
             </label>
           </div>
         </div>
 
-        <div class="form-row" id="retryConfigRow">
+        <div class="form-row" id="retryConfigRow" style="transition: opacity 0.2s;">
           <div class="form-group">
-            <label for="retryType">Retry Policy</label>
+            <label for="retryType">Retry Strategy</label>
             <select id="retryType">
-              <option value="exponential" selected>Exponential Backoff</option>
+              <option value="exponential">Exponential Backoff</option>
               <option value="fixed">Fixed Delay</option>
               <option value="none">No Retry</option>
             </select>
@@ -355,7 +310,7 @@
 
         <div class="modal-footer">
           <button type="button" class="btn btn-outline" id="btnCancelModal">Cancel</button>
-          <button type="submit" class="btn btn-primary">Dispatch Task to Queue</button>
+          <button type="submit" class="btn btn-primary">Submit to Queue</button>
         </div>
       </form>
     </div>
@@ -366,7 +321,6 @@
     <div class="modal-card">
       <div class="modal-header">
         <div class="modal-title">
-          <span class="modal-icon">☁️</span>
           <h3>Cloud Backend Connection (Render)</h3>
         </div>
         <button class="btn-close" id="btnCloseBackendModal">&times;</button>
@@ -381,9 +335,9 @@
           </span>
         </div>
 
-        <div style="background:rgba(255,255,255,0.03); border:1px solid var(--border); border-radius:8px; padding:12px; margin-bottom:16px;">
-          <div style="font-weight:600; font-size:0.85rem; margin-bottom:4px;">Architecture Path:</div>
-          <code style="font-size:0.8rem; color:#38bdf8;">GitHub Pages (Frontend) ➔ Render (Java 17 Backend Engine)</code>
+        <div style="background:var(--bg-subtle); border:1px solid var(--border); border-radius:6px; padding:10px; margin-bottom:12px;">
+          <div style="font-weight:600; font-size:0.82rem; margin-bottom:2px; color:var(--text-primary);">Architecture:</div>
+          <code style="font-size:0.78rem; color:var(--color-primary);">GitHub Pages (Frontend) -> Render (Java 17 Backend Engine)</code>
         </div>
 
         <div class="modal-footer">
