@@ -199,11 +199,26 @@ public class TaskSchedulerWebServer {
         public void handle(HttpExchange exchange) throws IOException {
             String path = exchange.getRequestURI().getPath();
             if (path.equals("/") || path.equals("/index.html")) {
-                sendResponse(exchange, 200, "text/html; charset=UTF-8", EmbeddedAssets.INDEX_HTML);
+                byte[] content = loadStaticResource("static/index.html");
+                if (content != null) {
+                    sendByteResponse(exchange, 200, "text/html; charset=UTF-8", content);
+                } else {
+                    sendResponse(exchange, 404, "text/plain", "index.html not found");
+                }
             } else if (path.equals("/style.css")) {
-                sendResponse(exchange, 200, "text/css; charset=UTF-8", EmbeddedAssets.STYLE_CSS);
+                byte[] content = loadStaticResource("static/style.css");
+                if (content != null) {
+                    sendByteResponse(exchange, 200, "text/css; charset=UTF-8", content);
+                } else {
+                    sendResponse(exchange, 404, "text/plain", "style.css not found");
+                }
             } else if (path.equals("/app.js")) {
-                sendResponse(exchange, 200, "application/javascript; charset=UTF-8", EmbeddedAssets.APP_JS);
+                byte[] content = loadStaticResource("static/app.js");
+                if (content != null) {
+                    sendByteResponse(exchange, 200, "application/javascript; charset=UTF-8", content);
+                } else {
+                    sendResponse(exchange, 404, "text/plain", "app.js not found");
+                }
             } else {
                 sendResponse(exchange, 404, "text/plain", "Not Found");
             }
@@ -564,12 +579,25 @@ public class TaskSchedulerWebServer {
 
     private void sendResponse(HttpExchange exchange, int code, String contentType, String content) throws IOException {
         byte[] bytes = content.getBytes(StandardCharsets.UTF_8);
+        sendByteResponse(exchange, code, contentType, bytes);
+    }
+
+    private void sendByteResponse(HttpExchange exchange, int code, String contentType, byte[] bytes) throws IOException {
         exchange.getResponseHeaders().set("Content-Type", contentType);
         exchange.getResponseHeaders().set("Access-Control-Allow-Origin", "*");
         exchange.sendResponseHeaders(code, bytes.length);
         try (OutputStream os = exchange.getResponseBody()) {
             os.write(bytes);
         }
+    }
+
+    private byte[] loadStaticResource(String resourcePath) {
+        try (InputStream is = getClass().getClassLoader().getResourceAsStream(resourcePath)) {
+            if (is != null) {
+                return is.readAllBytes();
+            }
+        } catch (IOException ignored) {}
+        return null;
     }
 
     private String readBody(HttpExchange exchange) throws IOException {
