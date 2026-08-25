@@ -125,10 +125,10 @@ public class TaskSchedulerWebServer {
     public void start() throws IOException {
         int actualPort = this.port;
         try {
-            server = HttpServer.create(new InetSocketAddress(actualPort), 0);
+            server = HttpServer.create(new InetSocketAddress("0.0.0.0", actualPort), 0);
         } catch (IOException e) {
             actualPort = this.port + 1;
-            server = HttpServer.create(new InetSocketAddress(actualPort), 0);
+            server = HttpServer.create(new InetSocketAddress("0.0.0.0", actualPort), 0);
         }
 
         server.setExecutor(Executors.newCachedThreadPool());
