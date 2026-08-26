@@ -5,6 +5,15 @@ let eventSource = null;
 let isSimMode = false;
 let simSeq = 1;
 
+// Permanent Render Cloud Backend URL
+const DEFAULT_BACKEND_URL = 'https://task-scheduler-backend-31lo.onrender.com';
+
+function getApiBase() {
+  const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+  if (isLocal) return '';
+  return DEFAULT_BACKEND_URL;
+}
+
 let simState = {
   metrics: {
     tasksSubmitted: 0,
@@ -31,7 +40,7 @@ let simState = {
 
 document.addEventListener('DOMContentLoaded', () => {
   setupEventListeners();
-  addSimLog('SUCCESS', 'System', 'init-001', 'TaskSchedulerEngine', 'CRITICAL', 'Task Scheduler engine active. Ready for job submissions and scenario simulations.', 0, 0);
+  addSimLog('SUCCESS', 'System', 'init-001', 'TaskSchedulerEngine', 'CRITICAL', 'Task Scheduler active. Connecting to Java 17 cloud backend...', 0, 0);
   updateUI(simState);
   initSSE();
   fetchStatus();
@@ -83,11 +92,11 @@ function setupEventListeners() {
         return;
       }
       try {
-        await fetch('/api/scheduler/reset', { method: 'POST' });
+        await fetch(getApiBase() + '/api/scheduler/reset', { method: 'POST' });
         showToast('Task Scheduler reset successfully');
         fetchStatus();
       } catch (err) {
-        showToast('Reset request completed');
+        showToast('Reset request sent to backend');
       }
     }
   });
@@ -115,7 +124,7 @@ function setupEventListeners() {
         t.scheduledTime = Date.now();
         t.sequenceNumber = simSeq++;
         simState.queue.push(t);
-        addSimLog('RETRY', 'Admin-DLQ', t.id, t.name, t.priority, `Replaying quarantined task from DLQ back to Priority Queue`, 0, 0);
+        addSimLog('RETRY', 'Admin-DLQ', t.id, t.name, t.priority, 'Replaying quarantined task from DLQ back to Priority Queue', 0, 0);
       });
       simState.dlq = [];
       showToast(`Replayed ${count} tasks from DLQ back to Priority Queue`);
@@ -123,12 +132,12 @@ function setupEventListeners() {
       return;
     }
     try {
-      const res = await fetch('/api/dlq/replay', { method: 'POST' });
+      const res = await fetch(getApiBase() + '/api/dlq/replay', { method: 'POST' });
       const data = await res.json();
       showToast(`Replayed ${data.replayed} tasks from DLQ back to Queue`);
       fetchStatus();
     } catch (e) {
-      showToast('DLQ replay triggered');
+      showToast('DLQ replay triggered on backend');
     }
   });
 
@@ -140,11 +149,11 @@ function setupEventListeners() {
       return;
     }
     try {
-      await fetch('/api/dlq/clear', { method: 'POST' });
+      await fetch(getApiBase() + '/api/dlq/clear', { method: 'POST' });
       showToast('Dead Letter Queue cleared');
       fetchStatus();
     } catch (e) {
-      showToast('DLQ cleared');
+      showToast('DLQ cleared on backend');
     }
   });
 
@@ -161,6 +170,7 @@ function setupEventListeners() {
 
 function initSSE() {
   const connStatus = document.getElementById('connStatusText');
+  const apiBase = getApiBase();
 
   if (eventSource) {
     try { eventSource.close(); } catch (e) {}
@@ -168,7 +178,7 @@ function initSSE() {
 
   if (window.EventSource) {
     try {
-      eventSource = new EventSource('/api/stream');
+      eventSource = new EventSource(apiBase + '/api/stream');
 
       eventSource.onopen = () => {
         connStatus.innerText = 'Backend: Connected';
@@ -177,6 +187,7 @@ function initSSE() {
 
       eventSource.addEventListener('CONNECTED', () => {
         connStatus.innerText = 'Backend: Connected';
+        isSimMode = false;
       });
 
       eventSource.addEventListener('STARTED', () => { fetchStatus(); });
@@ -307,16 +318,17 @@ function addSimLog(type, workerName, taskId, taskName, priority, message, durati
 }
 
 async function fetchStatus() {
-  if (isSimMode) return;
+  const apiBase = getApiBase();
   try {
-    const res = await fetch('/api/status');
+    const res = await fetch(apiBase + '/api/status');
     if (!res.ok) {
-      initSimEngine();
+      if (!isSimMode) initSimEngine();
       return;
     }
     const data = await res.json();
     const connStatus = document.getElementById('connStatusText');
     connStatus.innerText = 'Backend: Connected';
+    isSimMode = false;
     updateUI(data);
   } catch (err) {
     if (!isSimMode) initSimEngine();
@@ -481,6 +493,7 @@ function filterLogs(filterType) {
 async function runScenario(scenarioId) {
   const id = parseInt(scenarioId, 10);
   showToast(`Running Scenario #${id}`);
+  const apiBase = getApiBase();
 
   if (isSimMode) {
     if (id === 1) {
@@ -512,7 +525,7 @@ async function runScenario(scenarioId) {
   }
 
   try {
-    await fetch('/api/scenarios/run', {
+    await fetch(apiBase + '/api/scenarios/run', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ scenario: id })
@@ -553,6 +566,7 @@ async function handleTaskSubmit(event) {
   const retryType = document.getElementById('retryType').value;
   const maxRetries = document.getElementById('maxRetries').value;
   const backoffMs = document.getElementById('backoffMs').value;
+  const apiBase = getApiBase();
 
   if (isSimMode) {
     simEnqueueTask(name, priority, durationMs, failMode, maxRetries, backoffMs);
@@ -572,7 +586,7 @@ async function handleTaskSubmit(event) {
   };
 
   try {
-    const res = await fetch('/api/tasks', {
+    const res = await fetch(apiBase + '/api/tasks', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
