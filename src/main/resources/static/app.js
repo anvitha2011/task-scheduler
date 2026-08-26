@@ -4,6 +4,7 @@ let allLogs = [];
 let eventSource = null;
 let isSimMode = false;
 let simSeq = 1;
+let fastPollInterval = null;
 
 // Permanent Render Cloud Backend URL
 const DEFAULT_BACKEND_URL = 'https://task-scheduler-backend-31lo.onrender.com';
@@ -40,11 +41,11 @@ let simState = {
 
 document.addEventListener('DOMContentLoaded', () => {
   setupEventListeners();
-  addSimLog('SUCCESS', 'System', 'init-001', 'TaskSchedulerEngine', 'CRITICAL', 'Task Scheduler active. Connecting to Java 17 cloud backend...', 0, 0);
+  addSimLog('SUCCESS', 'System', 'init-001', 'TaskSchedulerEngine', 'CRITICAL', 'Task Scheduler active. Connecting to Java 17 backend...', 0, 0);
   updateUI(simState);
   initSSE();
   fetchStatus();
-  setInterval(fetchStatus, 1500); // Periodic heartbeat sync
+  setInterval(fetchStatus, 400); // 400ms high-responsiveness heartbeat sync
 });
 
 function setupEventListeners() {
@@ -94,7 +95,7 @@ function setupEventListeners() {
       try {
         await fetch(getApiBase() + '/api/scheduler/reset', { method: 'POST' });
         showToast('Task Scheduler reset successfully');
-        fetchStatus();
+        triggerFastPolling(3000);
       } catch (err) {
         showToast('Reset request sent to backend');
       }
@@ -113,7 +114,7 @@ function setupEventListeners() {
           id: d.taskId,
           name: d.taskName,
           priority: d.priority,
-          durationMs: 300,
+          durationMs: 600,
           failMode: 'none',
           maxRetries: 0,
           backoffMs: 200
@@ -135,7 +136,7 @@ function setupEventListeners() {
       const res = await fetch(getApiBase() + '/api/dlq/replay', { method: 'POST' });
       const data = await res.json();
       showToast(`Replayed ${data.replayed} tasks from DLQ back to Queue`);
-      fetchStatus();
+      triggerFastPolling(4000);
     } catch (e) {
       showToast('DLQ replay triggered on backend');
     }
@@ -166,6 +167,15 @@ function setupEventListeners() {
   document.getElementById('btnRunScenarios').addEventListener('click', () => {
     document.querySelector('.scenario-panel').scrollIntoView({ behavior: 'smooth' });
   });
+}
+
+function triggerFastPolling(durationMs) {
+  if (fastPollInterval) clearInterval(fastPollInterval);
+  fetchStatus();
+  fastPollInterval = setInterval(fetchStatus, 200);
+  setTimeout(() => {
+    if (fastPollInterval) clearInterval(fastPollInterval);
+  }, durationMs || 6000);
 }
 
 function initSSE() {
@@ -245,7 +255,7 @@ function simWorkerTick() {
 
         setTimeout(() => {
           simFinishTask(w, task);
-        }, task.durationMs || 400);
+        }, task.durationMs || 800);
       }
     }
   });
@@ -256,7 +266,7 @@ function simWorkerTick() {
 }
 
 function simFinishTask(worker, task) {
-  const duration = task.durationMs || 400;
+  const duration = task.durationMs || 800;
   let isFailure = false;
 
   if (task.failMode === 'transient' && task.retryCount < 2) isFailure = true;
@@ -269,7 +279,7 @@ function simFinishTask(worker, task) {
 
     if (task.retryCount < (task.maxRetries || 3)) {
       task.retryCount++;
-      const delay = (task.backoffMs || 300) * Math.pow(2, task.retryCount - 1);
+      const delay = (task.backoffMs || 800) * Math.pow(2, task.retryCount - 1);
       task.scheduledTime = Date.now() + delay;
       task.status = 'RETRYING';
       simState.queue.push(task);
@@ -397,7 +407,7 @@ function renderQueue(queue) {
 function renderWorkers(workers) {
   const container = document.getElementById('workerGrid');
   container.innerHTML = workers.map(w => {
-    const isExec = w.state === 'EXECUTING';
+    const isExec = w.state === 'EXECUTING' || w.isWorking || (w.currentTask !== null && w.currentTask !== undefined);
     const task = w.currentTask || w.task;
 
     return `
@@ -407,7 +417,7 @@ function renderWorkers(workers) {
             <span class="worker-dot"></span>
             <span class="worker-name">${escapeHtml(w.name)}</span>
           </div>
-          <span class="worker-state-tag ${isExec ? 'state-executing' : 'state-idle'}">${w.state}</span>
+          <span class="worker-state-tag ${isExec ? 'state-executing' : 'state-idle'}">${isExec ? 'EXECUTING' : 'IDLE'}</span>
         </div>
 
         <div class="worker-task-info">
@@ -415,7 +425,7 @@ function renderWorkers(workers) {
             <div>Task: <strong>${escapeHtml(task.name)}</strong></div>
             <div style="display:flex; justify-content:space-between; align-items:center; margin-top:4px;">
               <span class="badge badge-${(task.priority || 'medium').toLowerCase()}">${task.priority}</span>
-              <span style="font-family:var(--font-mono); font-size:0.72rem; color:var(--text-secondary);">${task.elapsedMs || task.durationMs || 300}ms</span>
+              <span style="font-family:var(--font-mono); font-size:0.72rem; color:var(--text-secondary);">${task.elapsedMs || 120}ms</span>
             </div>
             <div class="worker-progress-bar">
               <div class="worker-progress-bar-fill"></div>
@@ -498,27 +508,27 @@ async function runScenario(scenarioId) {
   if (isSimMode) {
     if (id === 1) {
       // 1. Priority Precedence & FIFO Tie-Breaking
-      simEnqueueTask('Low-OrderSync-1', 'LOW', 700, 'none', 0, 0);
-      simEnqueueTask('Low-OrderSync-2', 'LOW', 700, 'none', 0, 0);
-      simEnqueueTask('Medium-InventoryCheck', 'MEDIUM', 600, 'none', 0, 0);
-      simEnqueueTask('High-PaymentCapture', 'HIGH', 600, 'none', 0, 0);
-      simEnqueueTask('Critical-FraudAlert', 'CRITICAL', 500, 'none', 0, 0);
-      simEnqueueTask('Critical-PrimeDelivery', 'CRITICAL', 500, 'none', 0, 0);
+      simEnqueueTask('Low-OrderSync-1', 'LOW', 2200, 'none', 0, 0);
+      simEnqueueTask('Low-OrderSync-2', 'LOW', 2200, 'none', 0, 0);
+      simEnqueueTask('Medium-InventoryCheck', 'MEDIUM', 1800, 'none', 0, 0);
+      simEnqueueTask('High-PaymentCapture', 'HIGH', 1500, 'none', 0, 0);
+      simEnqueueTask('Critical-FraudAlert', 'CRITICAL', 1200, 'none', 0, 0);
+      simEnqueueTask('Critical-PrimeDelivery', 'CRITICAL', 1200, 'none', 0, 0);
     } else if (id === 2) {
       // 2. Exponential Backoff Retry Storm
-      simEnqueueTask('PaymentGateway-Charge', 'HIGH', 400, 'transient', 3, 250);
-      simEnqueueTask('AuthToken-Refresh', 'CRITICAL', 300, 'transient', 2, 200);
-      simEnqueueTask('Inventory-Reserve', 'MEDIUM', 350, 'transient', 2, 200);
+      simEnqueueTask('PaymentGateway-Charge', 'HIGH', 1000, 'transient', 3, 800);
+      simEnqueueTask('AuthToken-Refresh', 'CRITICAL', 800, 'transient', 2, 600);
+      simEnqueueTask('Inventory-Reserve', 'MEDIUM', 800, 'transient', 2, 600);
     } else if (id === 3) {
       // 3. Poison Pill Isolation (DLQ)
-      simEnqueueTask('Corrupted-Payload-Job-1', 'MEDIUM', 300, 'always', 2, 200);
-      simEnqueueTask('Malformed-JSON-Record-2', 'HIGH', 300, 'always', 1, 150);
+      simEnqueueTask('Corrupted-Payload-Job-1', 'MEDIUM', 800, 'always', 2, 800);
+      simEnqueueTask('Malformed-JSON-Record-2', 'HIGH', 800, 'always', 1, 600);
     } else if (id === 4) {
       // 4. High-Load Concurrency Surge (16 Jobs)
       const priorities = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
       for (let i = 1; i <= 16; i++) {
         const p = priorities[i % 4];
-        simEnqueueTask(`Surge-Job-${i}`, p, 250 + (i * 20), 'none', 0, 0);
+        simEnqueueTask(`Surge-Job-${i}`, p, 1200 + (i * 100), 'none', 0, 0);
       }
     }
     return;
@@ -530,9 +540,9 @@ async function runScenario(scenarioId) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ scenario: id })
     });
-    fetchStatus();
+    triggerFastPolling(8000);
   } catch (e) {
-    fetchStatus();
+    triggerFastPolling(4000);
   }
 }
 
@@ -542,10 +552,10 @@ function simEnqueueTask(name, priority, durationMs, failMode, maxRetries, backof
     sequenceNumber: simSeq++,
     name: name,
     priority: priority,
-    durationMs: parseInt(durationMs) || 500,
+    durationMs: parseInt(durationMs) || 1000,
     failMode: failMode || 'none',
     maxRetries: parseInt(maxRetries) || 0,
-    backoffMs: parseInt(backoffMs) || 300,
+    backoffMs: parseInt(backoffMs) || 600,
     retryCount: 0,
     scheduledTime: Date.now(),
     status: 'QUEUED'
@@ -595,7 +605,7 @@ async function handleTaskSubmit(event) {
     if (res.ok) {
       document.getElementById('submitModal').classList.remove('active');
       showToast(`Task '${name}' enqueued to backend`);
-      fetchStatus();
+      triggerFastPolling(4000);
     }
   } catch (err) {
     document.getElementById('submitModal').classList.remove('active');

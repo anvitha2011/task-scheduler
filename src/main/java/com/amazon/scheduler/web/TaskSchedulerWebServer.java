@@ -453,33 +453,33 @@ public class TaskSchedulerWebServer {
             case "1" -> {
                 // Priority Inversion & FIFO Tie-Breaking
                 addLog(new EventLog("SCENARIO", "System", "SCEN-1", "Priority Order Test", "INFO",
-                        "Submitting 6 tasks: 2 LOW, 1 MEDIUM, 1 HIGH, 2 CRITICAL simultaneously to test priority re-ordering and sequence tie-breaking", 0, 0));
+                        "Submitting 6 tasks: 2 LOW, 1 MEDIUM, 1 HIGH, 2 CRITICAL simultaneously to demonstrate priority re-ordering and sequence tie-breaking", 0, 0));
 
-                scheduler.submit("Low-Priority-OrderSync-1", Priority.LOW, () -> { Thread.sleep(250); return "Order-101-Synced"; });
-                scheduler.submit("Low-Priority-OrderSync-2", Priority.LOW, () -> { Thread.sleep(250); return "Order-102-Synced"; });
-                Thread.sleep(30);
-                scheduler.submit("Medium-Priority-InventoryCheck", Priority.MEDIUM, () -> { Thread.sleep(200); return "Inventory-Checked"; });
-                Thread.sleep(30);
-                scheduler.submit("High-Priority-PaymentCapture", Priority.HIGH, () -> { Thread.sleep(200); return "Charged-$199"; });
-                scheduler.submit("Critical-Priority-FraudAlert", Priority.CRITICAL, () -> { Thread.sleep(150); return "Account-Secured"; });
-                scheduler.submit("Critical-Priority-PrimeDelivery", Priority.CRITICAL, () -> { Thread.sleep(150); return "Dispatched-Express"; });
+                scheduler.submit("Low-Priority-OrderSync-1", Priority.LOW, () -> { Thread.sleep(2200); return "Order-101-Synced"; });
+                scheduler.submit("Low-Priority-OrderSync-2", Priority.LOW, () -> { Thread.sleep(2200); return "Order-102-Synced"; });
+                Thread.sleep(50);
+                scheduler.submit("Medium-Priority-InventoryCheck", Priority.MEDIUM, () -> { Thread.sleep(1800); return "Inventory-Checked"; });
+                Thread.sleep(50);
+                scheduler.submit("High-Priority-PaymentCapture", Priority.HIGH, () -> { Thread.sleep(1500); return "Charged-$199"; });
+                scheduler.submit("Critical-Priority-FraudAlert", Priority.CRITICAL, () -> { Thread.sleep(1200); return "Account-Secured"; });
+                scheduler.submit("Critical-Priority-PrimeDelivery", Priority.CRITICAL, () -> { Thread.sleep(1200); return "Dispatched-Express"; });
             }
             case "2" -> {
                 // Exponential Backoff Retry Storm
                 addLog(new EventLog("SCENARIO", "System", "SCEN-2", "Backoff Retry Storm", "INFO",
-                        "Submitting 3 tasks with transient network timeouts (504) with exponential backoff (150ms -> 300ms -> 600ms)", 0, 0));
+                        "Submitting tasks with transient network timeouts (504) and exponential backoff (800ms -> 1600ms -> 3200ms)", 0, 0));
 
                 AtomicInteger c1 = new AtomicInteger(0);
-                RetryPolicy exp1 = RetryPolicy.exponentialBackoff(3, 200, 2.0, 2000);
+                RetryPolicy exp1 = RetryPolicy.exponentialBackoff(3, 800, 2.0, 4000);
                 scheduler.submit("PaymentGateway-Auth", Priority.HIGH, () -> {
-                    Thread.sleep(150);
+                    Thread.sleep(1000);
                     if (c1.incrementAndGet() < 3) throw new RuntimeException("Stripe API Timeout (504) attempt #" + c1.get());
                     return "Auth-Token-XYZ789";
                 }, exp1);
 
                 AtomicInteger c2 = new AtomicInteger(0);
                 scheduler.submit("ShippingRate-Calculator", Priority.MEDIUM, () -> {
-                    Thread.sleep(120);
+                    Thread.sleep(800);
                     if (c2.incrementAndGet() < 2) throw new RuntimeException("FedEx Carrier Rate Service Unavailable (503)");
                     return "Rates-Calculated-$12.50";
                 }, exp1);
@@ -489,31 +489,31 @@ public class TaskSchedulerWebServer {
                 addLog(new EventLog("SCENARIO", "System", "SCEN-3", "Poison Pill Isolation", "INFO",
                         "Submitting poison pill task 'Corrupted-Order-Payload' with 2 max retries -> will route to DLQ", 0, 0));
 
-                RetryPolicy fixed2 = RetryPolicy.fixedRetry(2, 200);
+                RetryPolicy fixed2 = RetryPolicy.fixedRetry(2, 1000);
                 scheduler.submit("Corrupted-Order-Payload", Priority.CRITICAL, () -> {
-                    Thread.sleep(100);
+                    Thread.sleep(800);
                     throw new IllegalArgumentException("Fatal: Malformed JSON at byte 4092: unexpected EOF");
                 }, fixed2);
 
                 scheduler.submit("Invalid-CreditCard-Checksum", Priority.HIGH, () -> {
-                    Thread.sleep(100);
+                    Thread.sleep(800);
                     throw new SecurityException("Fatal: Luhn checksum verification failed for customer #4418");
                 }, fixed2);
             }
             case "4" -> {
                 // High Load Concurrency Surge
                 addLog(new EventLog("SCENARIO", "System", "SCEN-4", "High Load Surge", "INFO",
-                        "Flooding 24 concurrent mixed priority tasks across CRITICAL, HIGH, MEDIUM, LOW tiers", 0, 0));
+                        "Flooding 16 concurrent mixed priority tasks across CRITICAL, HIGH, MEDIUM, LOW tiers", 0, 0));
 
                 Priority[] priorities = { Priority.CRITICAL, Priority.HIGH, Priority.MEDIUM, Priority.LOW };
-                for (int i = 1; i <= 24; i++) {
+                for (int i = 1; i <= 16; i++) {
                     final int idx = i;
                     Priority p = priorities[i % priorities.length];
                     scheduler.submit("Surge-Job-" + p.name() + "-" + idx, p, () -> {
-                        Thread.sleep(100 + (idx % 4) * 50);
+                        Thread.sleep(1200 + (idx % 4) * 300);
                         return "Surge-Job-" + idx + "-Done";
                     });
-                    Thread.sleep(15);
+                    Thread.sleep(30);
                 }
             }
         }
