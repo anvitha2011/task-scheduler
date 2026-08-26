@@ -1,16 +1,12 @@
 # Multi-Threaded Task Scheduler & Job Queue (Java)
 
-[![Java 17](https://img.shields.io/badge/Java-17%2B-ED8B00?style=for-the-badge&logo=openjdk&logoColor=white)](https://www.oracle.com/java/)
-[![JUnit 5](https://img.shields.io/badge/JUnit_5-Testing-25A162?style=for-the-badge&logo=junit5&logoColor=white)](https://junit.org/junit5/)
-[![Build Status](https://img.shields.io/badge/Build-Passing-10B981?style=for-the-badge)](https://github.com/anvitha2011/task-scheduler)
-[![GitHub Pages](https://img.shields.io/badge/Live_Demo-Interactive_UI-0284C7?style=for-the-badge&logo=github&logoColor=white)](https://anvitha2011.github.io/task-scheduler/)
 
-> 🚀 **Live Interactive Web Demo:** [https://anvitha2011.github.io/task-scheduler/](https://anvitha2011.github.io/task-scheduler/)  
-> 📦 **GitHub Repository:** [https://github.com/anvitha2011/task-scheduler](https://github.com/anvitha2011/task-scheduler)
+>  **Live Interactive Web Demo:** [https://anvitha2011.github.io/task-scheduler/](https://anvitha2011.github.io/task-scheduler/)  
+> 
 
 ---
 
-## 📌 Project Overview
+##  Project Overview
 
 A production-grade, concurrent Task Scheduler and Job Queue implemented from scratch in **Java 17**. Built to demonstrate core **Operating Systems**, **Multithreading**, and **Low-Level Concurrency Primitives** without relying on high-level framework abstractions.
 
@@ -18,7 +14,7 @@ It solves the classic **Producer-Consumer problem** with thread synchronization,
 
 ---
 
-## 🎯 System Architecture
+##  System Architecture
 
 ```
                           +-----------------------------+
@@ -63,7 +59,7 @@ It solves the classic **Producer-Consumer problem** with thread synchronization,
 
 ---
 
-## 🚀 Key Concurrency Features
+##  Key Concurrency Features
 
 1. **Custom Priority Blocking Queue:**
    * Thread safety guaranteed via `ReentrantLock`.
@@ -107,7 +103,7 @@ mvn clean test
 
 ---
 
-## 🧪 Concurrency Test Suite
+##  Concurrency Test Suite
 
 | Test Suite | Coverage |
 |---|---|
