@@ -451,9 +451,9 @@ public class TaskSchedulerWebServer {
     private void runScenario(String scenarioId) throws Exception {
         switch (scenarioId) {
             case "1" -> {
-                // Priority Inversion & FIFO Tie-Breaking
-                addLog(new EventLog("SCENARIO", "System", "SCEN-1", "Priority Order Test", "INFO",
-                        "Submitting 6 tasks: 2 LOW, 1 MEDIUM, 1 HIGH, 2 CRITICAL simultaneously to demonstrate priority re-ordering and sequence tie-breaking", 0, 0));
+                // Priority Jobs (Important jobs run first)
+                addLog(new EventLog("SCENARIO", "System", "DEMO-1", "Priority Jobs", "INFO",
+                        "Submitting mixed Low, Medium, High, and Critical tasks to demonstrate that important jobs run first", 0, 0));
 
                 scheduler.submit("Low-Priority-OrderSync-1", Priority.LOW, () -> { Thread.sleep(2200); return "Order-101-Synced"; });
                 scheduler.submit("Low-Priority-OrderSync-2", Priority.LOW, () -> { Thread.sleep(2200); return "Order-102-Synced"; });
@@ -465,9 +465,9 @@ public class TaskSchedulerWebServer {
                 scheduler.submit("Critical-Priority-PrimeDelivery", Priority.CRITICAL, () -> { Thread.sleep(1200); return "Dispatched-Express"; });
             }
             case "2" -> {
-                // Exponential Backoff Retry Storm
-                addLog(new EventLog("SCENARIO", "System", "SCEN-2", "Backoff Retry Storm", "INFO",
-                        "Submitting tasks with transient network timeouts (504) and exponential backoff (800ms -> 1600ms -> 3200ms)", 0, 0));
+                // Automatic Retries (Failed jobs retry with exponential delays)
+                addLog(new EventLog("SCENARIO", "System", "DEMO-2", "Automatic Retries", "INFO",
+                        "Submitting tasks with transient network errors (504) to demonstrate automatic retries with increasing delays", 0, 0));
 
                 AtomicInteger c1 = new AtomicInteger(0);
                 RetryPolicy exp1 = RetryPolicy.exponentialBackoff(3, 800, 2.0, 4000);
@@ -485,9 +485,9 @@ public class TaskSchedulerWebServer {
                 }, exp1);
             }
             case "3" -> {
-                // Poison Pill DLQ Isolation
-                addLog(new EventLog("SCENARIO", "System", "SCEN-3", "Poison Pill Isolation", "INFO",
-                        "Submitting poison pill task 'Corrupted-Order-Payload' with 2 max retries -> will route to DLQ", 0, 0));
+                // Failed Jobs & Recovery (Permanently failed jobs are isolated)
+                addLog(new EventLog("SCENARIO", "System", "DEMO-3", "Failed Jobs & Recovery", "INFO",
+                        "Submitting permanently failing jobs to demonstrate isolation into Dead Letter Queue (DLQ)", 0, 0));
 
                 RetryPolicy fixed2 = RetryPolicy.fixedRetry(2, 1000);
                 scheduler.submit("Corrupted-Order-Payload", Priority.CRITICAL, () -> {
@@ -501,9 +501,9 @@ public class TaskSchedulerWebServer {
                 }, fixed2);
             }
             case "4" -> {
-                // High Load Concurrency Surge
-                addLog(new EventLog("SCENARIO", "System", "SCEN-4", "High Load Surge", "INFO",
-                        "Flooding 16 concurrent mixed priority tasks across CRITICAL, HIGH, MEDIUM, LOW tiers", 0, 0));
+                // High Traffic Test (Multiple jobs processed simultaneously)
+                addLog(new EventLog("SCENARIO", "System", "DEMO-4", "High Traffic Test", "INFO",
+                        "Submitting 16 concurrent jobs simultaneously to test thread pool scaling and queue drainage", 0, 0));
 
                 Priority[] priorities = { Priority.CRITICAL, Priority.HIGH, Priority.MEDIUM, Priority.LOW };
                 for (int i = 1; i <= 16; i++) {

@@ -148,28 +148,28 @@
     <section class="scenario-panel">
       <div class="scenario-header">
         <h3>System Demonstrations</h3>
-        <span class="subtext">Demonstrate priority ordering, exponential backoff retries, and failure isolation</span>
+        <span class="subtext">Test priority scheduling, automatic retries, and failure recovery</span>
       </div>
 
       <div class="scenario-buttons-grid">
         <button class="scenario-card" onclick="runScenario(1)">
-          <h4>1. Priority Precedence</h4>
-          <p>Dispatches mixed Low, Medium, High, and Critical tasks to demonstrate min-heap priority ordering and FIFO sequence tie-breaking.</p>
+          <h4>1. Priority Jobs</h4>
+          <p>Dispatches mixed Low, Medium, High, and Critical tasks to demonstrate that important jobs run first.</p>
         </button>
 
         <button class="scenario-card" onclick="runScenario(2)">
-          <h4>2. Exponential Backoff</h4>
-          <p>Simulates transient 504 network errors that retry with non-blocking exponential backoff (200ms -> 400ms -> 800ms) and recover.</p>
+          <h4>2. Automatic Retries</h4>
+          <p>Simulates transient network errors that automatically retry with increasing exponential delays and recover.</p>
         </button>
 
         <button class="scenario-card" onclick="runScenario(3)">
-          <h4>3. Poison Pill Isolation (DLQ)</h4>
-          <p>Dispatches permanently failing payloads that exhaust retries and route directly to the Dead Letter Queue.</p>
+          <h4>3. Failed Jobs & Recovery</h4>
+          <p>Simulates permanently failed jobs that exhaust retries and get safely isolated into the Dead Letter Queue.</p>
         </button>
 
         <button class="scenario-card" onclick="runScenario(4)">
-          <h4>4. High-Load Surge (16 Jobs)</h4>
-          <p>Floods 16 concurrent mixed-priority tasks simultaneously to test thread pool execution and throughput drainage.</p>
+          <h4>4. High Traffic Test</h4>
+          <p>Dispatches 16 simultaneous jobs to test thread pool scaling, queue buffering, and concurrent execution.</p>
         </button>
       </div>
     </section>

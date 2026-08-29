@@ -502,12 +502,18 @@ function filterLogs(filterType) {
 
 async function runScenario(scenarioId) {
   const id = parseInt(scenarioId, 10);
-  showToast(`Running Scenario #${id}`);
+  const demoNames = {
+    1: 'Priority Jobs',
+    2: 'Automatic Retries',
+    3: 'Failed Jobs & Recovery',
+    4: 'High Traffic Test'
+  };
+  showToast(`Running Demo: ${demoNames[id] || ('#' + id)}`);
   const apiBase = getApiBase();
 
   if (isSimMode) {
     if (id === 1) {
-      // 1. Priority Precedence & FIFO Tie-Breaking
+      // 1. Priority Jobs (Important jobs run first)
       simEnqueueTask('Low-OrderSync-1', 'LOW', 2200, 'none', 0, 0);
       simEnqueueTask('Low-OrderSync-2', 'LOW', 2200, 'none', 0, 0);
       simEnqueueTask('Medium-InventoryCheck', 'MEDIUM', 1800, 'none', 0, 0);
@@ -515,16 +521,16 @@ async function runScenario(scenarioId) {
       simEnqueueTask('Critical-FraudAlert', 'CRITICAL', 1200, 'none', 0, 0);
       simEnqueueTask('Critical-PrimeDelivery', 'CRITICAL', 1200, 'none', 0, 0);
     } else if (id === 2) {
-      // 2. Exponential Backoff Retry Storm
+      // 2. Automatic Retries (Failed jobs retry with exponential delays)
       simEnqueueTask('PaymentGateway-Charge', 'HIGH', 1000, 'transient', 3, 800);
       simEnqueueTask('AuthToken-Refresh', 'CRITICAL', 800, 'transient', 2, 600);
       simEnqueueTask('Inventory-Reserve', 'MEDIUM', 800, 'transient', 2, 600);
     } else if (id === 3) {
-      // 3. Poison Pill Isolation (DLQ)
+      // 3. Failed Jobs & Recovery (Permanently failed jobs are isolated)
       simEnqueueTask('Corrupted-Payload-Job-1', 'MEDIUM', 800, 'always', 2, 800);
       simEnqueueTask('Malformed-JSON-Record-2', 'HIGH', 800, 'always', 1, 600);
     } else if (id === 4) {
-      // 4. High-Load Concurrency Surge (16 Jobs)
+      // 4. High Traffic Test (Multiple jobs processed simultaneously)
       const priorities = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
       for (let i = 1; i <= 16; i++) {
         const p = priorities[i % 4];
