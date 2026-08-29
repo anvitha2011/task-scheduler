@@ -92,7 +92,7 @@ mvn compile exec:java
 
 ### 2. Run Interactive CLI Simulation
 ```bash
-mvn compile exec:java -Dexec.mainClass=com.amazon.scheduler.demo.TaskSchedulerDemo
+mvn compile exec:java -Dexec.mainClass=com.anvitha.scheduler.demo.TaskSchedulerDemo
 ```
 
 ### 3. Run Automated Concurrency Tests

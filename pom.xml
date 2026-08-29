@@ -4,7 +4,7 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>com.amazon.scheduler</groupId>
+    <groupId>com.anvitha.scheduler</groupId>
     <artifactId>task-scheduler</artifactId>
     <version>1.0.0</version>
 
@@ -55,7 +55,7 @@
                 <configuration>
                     <archive>
                         <manifest>
-                            <mainClass>com.amazon.scheduler.web.TaskSchedulerWebServer</mainClass>
+                            <mainClass>com.anvitha.scheduler.web.TaskSchedulerWebServer</mainClass>
                         </manifest>
                     </archive>
                 </configuration>
@@ -66,7 +66,7 @@
                 <artifactId>exec-maven-plugin</artifactId>
                 <version>3.2.0</version>
                 <configuration>
-                    <mainClass>com.amazon.scheduler.web.TaskSchedulerWebServer</mainClass>
+                    <mainClass>com.anvitha.scheduler.web.TaskSchedulerWebServer</mainClass>
                 </configuration>
             </plugin>
         </plugins>
